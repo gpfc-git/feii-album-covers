@@ -1,9 +1,10 @@
 import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
-import { Canvas, useThree } from '@react-three/fiber';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import BudgetProbe from '../../../src/lib/BudgetProbe.jsx';
+import usePrefersReducedMotion from '../../../src/lib/usePrefersReducedMotion.js';
 import './route.css';
 
 const SCOPE = 'route-bia';
@@ -11,6 +12,9 @@ const MODEL_URL = new URL('../public/models/bia-combined.glb', import.meta.url).
 const HAND_URL = new URL('../public/models/bia_hand.glb', import.meta.url).href;
 const LIQUIDS_URL = new URL('../public/models/bia_ls_2.glb', import.meta.url).href;
 const SIGNATURE_URL = new URL('../public/bia-signature.png', import.meta.url).href;
+const LIQUID_ROTATION_AXIS = new THREE.Vector3(0, 1, 0);
+const LIQUID_SWING_ANGLE = THREE.MathUtils.degToRad(5);
+const LIQUID_BACK_OFFSET_Z = -0.035;
 
 function styleLiquidMaterial(material) {
   material.color.set('#ffae00');
@@ -160,12 +164,55 @@ function normalizeModel(object) {
   return cameraData;
 }
 
+function attachLiquidAndGlassToAxis(root, liquid, glass) {
+  root.updateMatrixWorld(true);
+  liquid.updateWorldMatrix(true, true);
+  const liquidCenter = new THREE.Box3()
+    .setFromObject(liquid)
+    .getCenter(new THREE.Vector3());
+  liquidCenter.z += LIQUID_BACK_OFFSET_Z;
+
+  const pivot = new THREE.Object3D();
+  pivot.name = 'BiaLiquidAndGlassPivot';
+  pivot.position.copy(liquidCenter);
+  pivot.quaternion.copy(glass.quaternion);
+  root.add(pivot);
+
+  const inverseAxis = glass.quaternion.clone().invert();
+  glass.position.sub(pivot.position).applyQuaternion(inverseAxis);
+  glass.quaternion.identity();
+  liquid.position.sub(pivot.position).applyQuaternion(inverseAxis);
+  liquid.quaternion.copy(inverseAxis);
+  pivot.add(glass);
+  pivot.add(liquid);
+
+  return pivot;
+}
+
 function BlenderModel({ onReady }) {
   const group = useRef(null);
+  const liquidPivot = useRef(null);
+  const liquidBaseRotation = useRef(new THREE.Quaternion());
+  const liquidSwingRotation = useRef(new THREE.Quaternion());
   const [model, setModel] = useState(null);
   const [status, setStatus] = useState('loading');
   const canvasCamera = useThree((state) => state.camera);
   const canvasSize = useThree((state) => state.size);
+  const reducedMotion = usePrefersReducedMotion();
+
+  useFrame(({ clock }) => {
+    if (!liquidPivot.current) return;
+    if (reducedMotion) {
+      liquidPivot.current.quaternion.copy(liquidBaseRotation.current);
+      return;
+    }
+
+    const angle = Math.sin(clock.elapsedTime * Math.PI) * LIQUID_SWING_ANGLE;
+    liquidSwingRotation.current.setFromAxisAngle(LIQUID_ROTATION_AXIS, angle);
+    liquidPivot.current.quaternion
+      .copy(liquidBaseRotation.current)
+      .multiply(liquidSwingRotation.current);
+  });
 
   useEffect(() => {
     let cancelled = false;
@@ -279,7 +326,12 @@ function BlenderModel({ onReady }) {
               child.geometry.attributes.normal.needsUpdate = true;
             }
           });
-          gltf.scene.add(liquidsGltf.scene);
+          liquidPivot.current = attachLiquidAndGlassToAxis(
+            gltf.scene,
+            liquidsGltf.scene,
+            gltf.scene.getObjectByName('Glass'),
+          );
+          liquidBaseRotation.current.copy(liquidPivot.current.quaternion);
           setModel(gltf.scene);
           setStatus('ready');
           onReady();
@@ -292,6 +344,7 @@ function BlenderModel({ onReady }) {
 
     return () => {
       cancelled = true;
+      liquidPivot.current = null;
     };
   }, [canvasCamera, canvasSize.height, canvasSize.width, onReady]);
 
