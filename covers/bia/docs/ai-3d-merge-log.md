@@ -2,4 +2,4 @@
 
 | Diff | Gate | Decision | Reason |
 | --- | --- | --- | --- |
-| BIA route setup | model import / rights / renderer budget | ESCALATE | Add a self-contained Blender `.glb`, inspect its triangles and source rights, then complete the renderer budget. |
+| BIA route setup | model import / rights / renderer budget | ACCEPT | The route loads self-contained local GLB assets, records their sources and licence evidence location, and documents the browser renderer sample in `renderer-info.md`. |

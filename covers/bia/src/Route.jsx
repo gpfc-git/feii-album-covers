@@ -19,6 +19,9 @@ const ROCKING_ROTATION_AXIS = new THREE.Vector3(0, 0, 1);
 const PLATE_ROTATION_AXIS = new THREE.Vector3(1, 0, 0);
 const LIQUID_SWING_ANGLE = THREE.MathUtils.degToRad(5);
 const PLATE_SWING_ANGLE = THREE.MathUtils.degToRad(5);
+const ANIMATION_BPM = 138;
+const TWO_BEAT_SECONDS = (60 / ANIMATION_BPM) * 4;
+const ANIMATION_PHASE = Math.PI / TWO_BEAT_SECONDS;
 const LIQUID_BACK_OFFSET_Z = -0.035;
 
 function styleLiquidMaterial(material) {
@@ -94,9 +97,18 @@ function removeSmallLiquidIslands(object) {
       componentSizes.set(root, (componentSizes.get(root) ?? 0) + 1);
     }
 
+    let largestRoot = null;
+    let largestSize = 0;
+    for (const [root, size] of componentSizes) {
+      if (size > largestSize) {
+        largestRoot = root;
+        largestSize = size;
+      }
+    }
+
     const keep = [];
     for (let triangle = 0; triangle < triangleCount; triangle += 1) {
-      if ((componentSizes.get(find(triangle)) ?? 0) >= 2500) {
+      if (find(triangle) === largestRoot) {
         keep.push(triangle);
       }
     }
@@ -287,9 +299,9 @@ function BlenderModel({ onReady }) {
       return;
     }
 
-    const angle = Math.sin(clock.elapsedTime * Math.PI) * LIQUID_SWING_ANGLE;
+    const angle = Math.sin(clock.elapsedTime * ANIMATION_PHASE) * LIQUID_SWING_ANGLE;
     const plateAngle =
-      (1 - Math.cos((clock.elapsedTime - 1.5) * Math.PI)) *
+      (1 - Math.cos((clock.elapsedTime * ANIMATION_PHASE) - (1.5 * Math.PI))) *
       0.5 *
       PLATE_SWING_ANGLE;
     liquidSwingRotation.current.setFromAxisAngle(ROCKING_ROTATION_AXIS, angle);
@@ -350,6 +362,12 @@ function BlenderModel({ onReady }) {
               ? child.material
               : [child.material];
             plateMaterials.forEach((material) => {
+              material.roughness = 0.12;
+              material.roughnessFactor = 0.12;
+              material.metalness = 0.18;
+              material.metalnessFactor = 0.18;
+              if ("clearcoat" in material) material.clearcoat = 1;
+              if ("clearcoatRoughness" in material) material.clearcoatRoughness = 0.04;
               material.polygonOffset = true;
               material.polygonOffsetFactor = 1;
               material.polygonOffsetUnits = 1;
@@ -404,6 +422,7 @@ function BlenderModel({ onReady }) {
               ? child.material
               : [child.material];
             materials.forEach((material) => {
+              material.color?.set("#FFD9BD");
               material.alphaMode = "OPAQUE";
               material.transparent = false;
               material.alphaTest = 0;
@@ -596,7 +615,7 @@ export default function Route() {
         aria-label="Interactive three-dimensional Blender cover"
       >
         <Canvas
-          shadows
+          shadows="percentage"
           camera={{ position: [0, 0.25, 5.2], fov: 49.1 }}
           dpr={[1, 1.5]}
         >
