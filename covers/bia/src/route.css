@@ -118,6 +118,101 @@ html.route-bia body {
   cursor: default;
 }
 
+.bia__loading {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  display: grid;
+  place-items: center;
+  background: #2956B1;
+}
+
+.bia__loading-icon {
+  width: 42px;
+  height: 42px;
+  border: 5px solid rgba(248, 203, 62, 0.28);
+  border-top-color: #f8cb3e;
+  border-radius: 50%;
+  animation: bia-loading-spin 0.85s linear infinite;
+}
+
+@keyframes bia-loading-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.bia__track-menu {
+  position: absolute;
+  bottom: 100px;
+  right: clamp(48px, 7vw, 112px);
+  z-index: 5;
+  width: min(324px, calc(100vw - 48px));
+}
+
+.bia__track-menu--open {
+  top: auto;
+  bottom: 100px;
+  color: #f2ede2;
+}
+
+.bia__track-trigger {
+  display: flex;
+  width: 100%;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 12px;
+  border: 0;
+  border-top: 1px solid rgba(242, 237, 226, 0.6);
+  border-bottom: 1px solid rgba(242, 237, 226, 0.25);
+  background: rgba(9, 9, 11, 0.88);
+  color: inherit;
+  font: 600 12px/1 ui-monospace, monospace;
+  letter-spacing: 0.18em;
+  cursor: pointer;
+}
+
+.bia__track-trigger span:last-child {
+  font-size: 20px;
+  font-weight: 400;
+  line-height: 0.5;
+}
+
+.bia__track-panel {
+  box-sizing: border-box;
+  padding: 12px;
+  background: rgba(9, 9, 11, 0.88);
+  border: 1px solid rgba(242, 237, 226, 0.18);
+  border-top: 0;
+}
+
+.bia__track-heading {
+  display: none;
+  color: #f8cb3e;
+  font: 11px/1.2 ui-monospace, monospace;
+  letter-spacing: 0.18em;
+}
+
+.bia__track-title {
+  display: none;
+  gap: 9px;
+  align-items: center;
+  margin: 8px 0 12px;
+  font-size: 16px;
+}
+
+.bia__play-icon {
+  color: #f8cb3e;
+  font-size: 12px;
+}
+
+.bia__track-panel iframe {
+  display: block;
+  width: 100%;
+  height: 152px;
+  border: 0;
+}
+
 .bia__budget {
   position: absolute;
   top: 40px;
@@ -140,6 +235,17 @@ html.route-bia body {
   .bia__header {
     left: 24px;
     bottom: 100px;
+  }
+
+  .bia__track-menu {
+    bottom: 96px;
+    right: 24px;
+    width: min(324px, calc(100vw - 48px));
+  }
+
+  .bia__track-menu--open {
+    top: auto;
+    bottom: 96px;
   }
 
   .bia__header h1 {

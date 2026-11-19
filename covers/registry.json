@@ -36,21 +36,21 @@
     "readiness": "reference"
   },
   {
-    "slug": "por-si-manana-no-estoy",
-    "title": "Por Si Mañana No Estoy",
-    "authors": ["Gonsiii11"],
-    "concept": "Omar Courtz — Por Si Mañana No Estoy (2026). Picture disc 3D con la portada en relieve, brazo que baja a cada canción y fragmentos de 30 s que hacen latir el corazón.",
-    "thumbnail": "thumbnail.svg",
-    "tags": ["webgl", "shader", "audio"],
-    "readiness": "wip"
-  },
-  {
     "slug": "bia",
     "title": "Supertramp - Breakfast In America",
     "authors": ["gpfc-git"],
     "concept": "BIA — A Blender-imported Three.js cover study.",
     "thumbnail": "thumbnail.svg",
     "tags": ["webgl"],
+    "readiness": "wip"
+  },
+  {
+    "slug": "por-si-manana-no-estoy",
+    "title": "Por Si Mañana No Estoy",
+    "authors": ["Gonsiii11"],
+    "concept": "Omar Courtz — Por Si Mañana No Estoy (2026). Picture disc 3D con la portada en relieve, brazo que baja a cada canción y fragmentos de 30 s que hacen latir el corazón.",
+    "thumbnail": "thumbnail.svg",
+    "tags": ["webgl", "shader", "audio"],
     "readiness": "wip"
   }
 ]

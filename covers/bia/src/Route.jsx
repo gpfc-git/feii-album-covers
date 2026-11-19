@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useRef, useState } from 'react';
+import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { Canvas, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
@@ -160,7 +160,7 @@ function normalizeModel(object) {
   return cameraData;
 }
 
-function BlenderModel() {
+function BlenderModel({ onReady }) {
   const group = useRef(null);
   const [model, setModel] = useState(null);
   const [status, setStatus] = useState('loading');
@@ -282,6 +282,7 @@ function BlenderModel() {
           gltf.scene.add(liquidsGltf.scene);
           setModel(gltf.scene);
           setStatus('ready');
+          onReady();
         });
       })
       .catch((error) => {
@@ -292,7 +293,7 @@ function BlenderModel() {
     return () => {
       cancelled = true;
     };
-  }, [canvasCamera, canvasSize.height, canvasSize.width]);
+  }, [canvasCamera, canvasSize.height, canvasSize.width, onReady]);
 
   useEffect(() => () => disposeObject(model), [model]);
 
@@ -332,19 +333,55 @@ function ThumbShadowLight() {
   );
 }
 
-function Scene({ showBudget, onSample }) {
+function Scene({ showBudget, onSample, onReady }) {
   return (
     <>
-      <BlenderModel />
+      <BlenderModel onReady={onReady} />
       <ThumbShadowLight />
       {showBudget && <BudgetProbe onSample={onSample} />}
     </>
   );
 }
 
+function TrackMenu() {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className={`bia__track-menu${open ? ' bia__track-menu--open' : ''}`}>
+      <button
+        className="bia__track-trigger"
+        type="button"
+        aria-expanded={open}
+        aria-controls="bia-track-panel"
+        onClick={() => setOpen((value) => !value)}
+      >
+        <span>LISTEN</span>
+        <span aria-hidden="true">{open ? '−' : '+'}</span>
+      </button>
+      {open && (
+        <div className="bia__track-panel" id="bia-track-panel">
+          <div className="bia__track-heading">SUPERTRAMP · 10 TRACKS</div>
+          <div className="bia__track-title">
+            <span className="bia__play-icon" aria-hidden="true">▶</span>
+            <span>Breakfast In America</span>
+          </div>
+          <iframe
+            title="Play the Breakfast In America album by Supertramp on Spotify"
+            src="https://open.spotify.com/embed/album/29B5sIbYPnSjJaD5CloPjf?utm_source=generator&theme=0"
+            allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+            loading="lazy"
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function Route() {
   const [budget, setBudget] = useState(null);
+  const [assetsReady, setAssetsReady] = useState(false);
   const [showBudget] = useState(() => new URLSearchParams(window.location.search).has('budget'));
+  const handleAssetsReady = useCallback(() => setAssetsReady(true), []);
 
   useEffect(() => {
     document.documentElement.classList.add(SCOPE);
@@ -361,10 +398,18 @@ export default function Route() {
       <div className="bia__canvas" aria-label="Interactive three-dimensional Blender cover">
         <Canvas shadows camera={{ position: [0, 0.25, 5.2], fov: 49.1 }} dpr={[1, 1.5]}>
           <Suspense fallback={null}>
-            <Scene showBudget={showBudget} onSample={setBudget} />
+            <Scene showBudget={showBudget} onSample={setBudget} onReady={handleAssetsReady} />
           </Suspense>
         </Canvas>
       </div>
+
+      {!assetsReady && (
+        <div className="bia__loading" role="status" aria-label="Loading BIA">
+          <span className="bia__loading-icon" aria-hidden="true" />
+        </div>
+      )}
+
+      <TrackMenu />
 
       {showBudget && budget && (
         <pre className="bia__budget" aria-label="renderer.info">
