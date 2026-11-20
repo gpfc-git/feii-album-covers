@@ -40,6 +40,28 @@
   opacity: 0.8;
 }
 
+/* Atribución CC-BY del modelo de Freddie: siempre visible, arriba a la derecha (abajo la tapan
+   los botones de la galería); solo los enlaces reciben el puntero. */
+.qbr__credit {
+  position: absolute;
+  top: 16px;
+  right: 24px;
+  max-width: min(38ch, 70vw);
+  margin: 0;
+  font-family: system-ui, sans-serif;
+  font-size: 0.72rem;
+  line-height: 1.4;
+  text-align: right;
+  opacity: 0.85;
+  text-shadow: 0 1px 8px rgb(0 0 0 / 85%);
+  pointer-events: none;
+}
+
+.qbr__credit a {
+  color: inherit;
+  pointer-events: auto;
+}
+
 .qbr__controls {
   position: absolute;
   right: 24px;

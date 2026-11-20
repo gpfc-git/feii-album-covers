@@ -95,6 +95,20 @@ export default function Route() {
         <p>Queen · homenaje 3D (fan art no oficial)</p>
       </header>
 
+      {/* CC-BY-4.0 (D8 en CLAUDE.md, docs/ktx2-note.md): autor, fuente, licencia y "modificado".
+          Arriba a la derecha: abajo a la izquierda lo tapan los botones de la galería. */}
+      <p className="qbr__credit">
+        Freddie:{' '}
+        <a href="https://sketchfab.com/3d-models/freddie-mercury-t-pose-b89ee72767a54daa8c79768a5cdd2bbd" target="_blank" rel="noreferrer">
+          «Freddie Mercury - T_Pose»
+        </a>{' '}
+        de Gerwerni (Sketchfab),{' '}
+        <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noreferrer">
+          CC BY 4.0
+        </a>
+        , modificado (pose, diezmado, bake).
+      </p>
+
       <div className="qbr__controls">
         {!started ? (
           <>

@@ -1,4 +1,4 @@
-// CameraRig.jsx — vuelo de cámara basado en el vídeo de referencia (16,5 s).
+// CameraRig.jsx — vuelo de cámara (keys.js: arranque del vídeo de referencia + guion del GATE 4, ~55 s).
 //
 // Dos CatmullRomCurve3 (posición y punto de mira) + tabla de keyframes con tiempos (keys.js).
 // getPoint(i / (n - 1)) pasa EXACTAMENTE por el punto i, así que mapeando

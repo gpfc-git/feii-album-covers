@@ -44,12 +44,21 @@ césped y = −1,6. Sol hacia −Z (delante de Freddie, sobre la grada que mira)
 ## Derechos (D8) — repo PÚBLICO con GitHub Pages
 - NO publicar la portada oficial ni el vídeo de referencia. Solo referencia local en `reference/` (excluido en `.git/info/exclude`).
 - Arte propio / PD / licencia abierta. Registrar creador, fuente, licencia en `docs/ktx2-note.md`.
-- Freddie = maniquí estilizado: sin parecido facial realista, sin image-to-3D ni texturas a partir de fotos.
+- Freddie = modelo de terceros «Freddie Mercury - T_Pose» de **Gerwerni** (Sketchfab,
+  https://sketchfab.com/3d-models/freddie-mercury-t-pose-b89ee72767a54daa8c79768a5cdd2bbd, **CC-BY-4.0**), posado, diezmado y
+  bakeado a un atlas (`docs/blender-note.md`). **Decisión de gontugithub (2026-11-17), en contra de la regla original**
+  («maniquí estilizado, sin parecido facial»): es un Freddie reconocible, con cara y bigote. Registrada como ESCALATE en la
+  fila 20 de `docs/ai-3d-merge-log.md`. La licencia CC-BY cubre la malla y sus texturas, no la imagen de la persona.
+- Obligatorio con este modelo: atribución CC-BY **visible en la cover** (autor, enlace, licencia, «modificado») y registro en
+  `docs/ktx2-note.md`. Sin image-to-3D ni generadores de IA para Freddie; no cambiarlo por otro modelo sin repetir el registro.
+- Fans = maniquíes estilizados propios (sin cambios).
 
-## Referencia visual (vídeo 16.5 s)
-Portada flotando en vacío → atraviesa → estadio al atardecer (Freddie a contraluz) → push-in → contrapicado →
-tras él → primer plano cara (focos violetas) → baja a cinturón/micro → cielo nocturno con star trails
-→ plano final con fan-maniquí. Estética: maniquíes estilizados, luces de móviles, haces de luz.
+## Referencia visual
+Vídeo de referencia (16,5 s) solo para el arranque: portada flotando en vacío → atraviesa → estadio al atardecer
+(Freddie a contraluz). Desde el GATE 4 el vuelo sigue el guion de gontugithub (~55 s, `src/keys.js`): contrapicado por
+detrás → hombro derecho → sobre el público hasta el fondo → vista de espectador → dron por la grada → dentro del escenario
+→ detrás de él → sube sobre el estadio de noche con los móviles. Estética: fans maniquí estilizados, luces de móviles,
+haces de luz (Freddie: ver D8).
 
 ## Presupuesto GPU
 Tope del curso: ≤ 200 draw calls desktop, ≤ 80 móvil; techo propio en `src/budget.js` (`CEILING`) + `docs/renderer-info.md`.

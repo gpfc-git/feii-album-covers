@@ -1,4 +1,4 @@
-// stadiumGlb.js — camino GLTF + KTX2 + meshopt para task3. INACTIVO en task1 (USE_GLB = false).
+// stadiumGlb.js — camino GLTF + KTX2 + meshopt (activo desde task3: USE_GLB = true).
 //
 // En task3 el GLB de Blender (nodos Freddie, Mic, Stage, Stadium, Fan_LOD0, Fan_LOD1)
 // se optimiza a public/stadium.ktx2.glb y se carga aquí. Reutiliza la ruta del
@@ -14,11 +14,14 @@ import { KTX2Loader } from 'three/addons/loaders/KTX2Loader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { TRANSCODER_PATH } from '../../../src/lib/ktx2.js';
 
-/** task1: placeholders procedurales. task3: true cuando exista public/stadium.ktx2.glb. */
-export const USE_GLB = false;
+/** task1–2: placeholders procedurales. task3: el GLB de Blender (public/stadium.ktx2.glb). */
+export const USE_GLB = true;
 
-// TODO(task3): descomentar cuando el archivo exista (Vite resuelve la URL en build).
-// export const MODEL_URL = new URL('../public/stadium.ktx2.glb', import.meta.url).href;
+/**
+ * GLB optimizado (meshopt + texturas ETC1S). Fuente y cómo regenerarlo: docs/blender-note.md;
+ * comandos de gltf-transform y bytes: docs/ktx2-note.md.
+ */
+export const MODEL_URL = new URL('../public/stadium.ktx2.glb', import.meta.url).href;
 
 let ktx2Loader = null;
 

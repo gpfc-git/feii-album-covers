@@ -6,11 +6,14 @@
 //
 // Por defecto se usa public/sleeve.png (1024², sRGB), pintado por tools/make-sleeve.mjs: arte
 // original (sin foto, texto ni escudo). La portada oficial NO va aquí: solo en reference/ (local).
-// Es el mismo archivo que `npm run encode -- queen-bohemian-rhapsody` convierte a KTX2 en task3.
+// Es el mismo archivo que `npm run encode -- queen-bohemian-rhapsody` convierte a KTX2 en task3;
+// desde task3 la ruta carga el KTX2 (ETC1S por defecto, ver SLEEVE_MODE).
 
 import { useEffect, useMemo } from 'react';
 import { useTexture } from '@react-three/drei';
 import { CanvasTexture, SRGBColorSpace } from 'three';
+import { formatName, gpuBytes } from '../../../src/lib/gpuBytes.js';
+import { useKTX2Texture } from '../../../src/lib/ktx2.js';
 
 /**
  * public/sleeve.png: portada propia generada por tools/make-sleeve.mjs. Pon `null` para volver
@@ -19,6 +22,44 @@ import { CanvasTexture, SRGBColorSpace } from 'three';
  * @type {string | null}
  */
 export const SLEEVE_URL = new URL('../public/sleeve.png', import.meta.url).href;
+
+/** task3: la misma funda codificada con `npm run encode -- queen-bohemian-rhapsody` (docs/ktx2-note.md). */
+const KTX2_URLS = {
+  etc1s: new URL('../public/sleeve-etc1s.ktx2', import.meta.url).href,
+  uastc: new URL('../public/sleeve-uastc.ktx2', import.meta.url).href,
+};
+
+/**
+ * Formato de la funda: ETC1S por defecto (docs/ktx2-note.md explica por qué). Para medir y comparar,
+ * `?sleeve=png`, `?sleeve=etc1s` o `?sleeve=uastc` en la URL. Se fija al cargar el módulo, así que
+ * cada render llama siempre al mismo hook.
+ *
+ * @type {'png' | 'etc1s' | 'uastc'}
+ */
+export const SLEEVE_MODE = (() => {
+  const asked = typeof window === 'undefined' ? null : new URLSearchParams(window.location.search).get('sleeve');
+  return asked === 'png' || asked === 'uastc' ? asked : 'etc1s';
+})();
+
+/**
+ * Registra una vez el formato, el colorSpace y los bytes de GPU (calculados) de la funda.
+ *
+ * @param {import('three').Texture} texture
+ */
+function useLogSleeve(texture) {
+  useEffect(() => {
+    const info = gpuBytes(texture);
+    console.info(`[queen-bohemian-rhapsody] funda (${SLEEVE_MODE}) — GPU bytes calculados, todos los niveles`);
+    console.table({
+      format: formatName(texture.format),
+      colorSpace: texture.colorSpace,
+      flipY: texture.flipY,
+      size: `${info.width}×${info.height}`,
+      levels: info.levels,
+      gpuBytes: info.bytes,
+    });
+  }, [texture]);
+}
 
 const SIZE = 512;
 
@@ -106,16 +147,29 @@ function useCanvasSleeve() {
 
 /** Portada desde public/sleeve.png. La caché de drei es la dueña de la textura (no dispose aquí). */
 function usePngSleeve() {
-  return useTexture(/** @type {string} */ (SLEEVE_URL), (tex) => {
+  const texture = useTexture(/** @type {string} */ (SLEEVE_URL), (tex) => {
     tex.colorSpace = SRGBColorSpace; // el PNG guarda colores de pantalla
     tex.anisotropy = 4;
   });
+  useLogSleeve(texture);
+  return texture;
 }
 
 /**
- * Textura de la funda. La elección es fija por módulo (SLEEVE_URL), así que
+ * Portada KTX2 (ETC1S o UASTC) con el loader y el transcoder compartidos (src/lib/ktx2.js).
+ * El colorSpace (sRGB) lo pone el loader leyendo el archivo; la orientación viene del encode
+ * (--lower_left_maps_to_s0t0), no de flipY. La caché de useLoader es la dueña de la textura.
+ */
+function useKtx2Sleeve() {
+  const texture = useKTX2Texture(KTX2_URLS[SLEEVE_MODE === 'uastc' ? 'uastc' : 'etc1s']);
+  useLogSleeve(texture);
+  return texture;
+}
+
+/**
+ * Textura de la funda. La elección es fija por módulo (SLEEVE_URL, SLEEVE_MODE), así que
  * siempre se llama al mismo hook en cada render.
  *
  * @returns {import('three').Texture}
  */
-export const useSleeveTexture = SLEEVE_URL ? usePngSleeve : useCanvasSleeve;
+export const useSleeveTexture = !SLEEVE_URL ? useCanvasSleeve : SLEEVE_MODE === 'png' ? usePngSleeve : useKtx2Sleeve;

@@ -3,21 +3,23 @@
 // t < WORLD_FROM: vacío negro con la portada (CoverPortal).
 // t ≥ WORLD_FROM: cielo + luces (SkyLights) + estadio + Freddie + multitud con móviles (grupo `world`).
 // La hora del día (progress.tod) mueve el cielo, las luces y la multitud a la vez.
-// task1 usa placeholders procedurales (placeholders.js); el camino GLB está en
-// stadiumGlb.js detrás de USE_GLB. Las geometrías creadas aquí se liberan al desmontar.
+// task3: GLB de Blender (stadiumGlb.js, USE_GLB = true). Los placeholders procedurales de task1
+// (placeholders.js) siguen detrás de USE_GLB = false. Las geometrías creadas aquí se liberan al desmontar.
 
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { DoubleSide } from 'three';
 import CameraRig from './CameraRig.jsx';
 import CoverPortal from './CoverPortal.jsx';
+import { formatName, gpuBytes } from '../../../src/lib/gpuBytes.js';
 import Crowd from './Crowd.jsx';
+import { GLB_SITE } from './crowdSite.js';
 import RendererInfo from './RendererInfo.jsx';
 import SkyLights from './SkyLights.jsx';
 import SunsetSky from './SunsetSky.jsx';
 import { WORLD_FROM } from './keys.js';
 import { makeFan, makeFreddie, makeMic, makeStadium, makeStage } from './placeholders.js';
-import { USE_GLB, useStadiumGLTF } from './stadiumGlb.js';
+import { MODEL_URL, USE_GLB, useStadiumGLTF } from './stadiumGlb.js';
 
 /**
  * Estadio, escenario, Freddie, micro y multitud con geometría procedural.
@@ -57,22 +59,57 @@ function ProceduralWorld({ progress, reduced }) {
 }
 
 /**
- * task3: el GLB de Blender. Los nodos Fan_LOD0/Fan_LOD1 se ocultan: la multitud
- * los instancia (posiciones en JS). INACTIVO mientras USE_GLB = false.
+ * Registra, una vez por carga, formato, colorSpace y bytes de GPU de cada textura del GLB
+ * (docs/ktx2-note.md). Los bytes son calculados (src/lib/gpuBytes.js), no el tamaño del archivo.
  *
- * @param {{ url: string, progress: import('react').RefObject<{ tod: number }>, reduced: boolean }} props
+ * @param {import('three').Object3D} scene
  */
-function GlbWorld({ url, progress, reduced }) {
-  const { scene, nodes } = useStadiumGLTF(url);
+function logGlbTextures(scene) {
+  const seen = new Set();
+  scene.traverse((obj) => {
+    const map = obj.material?.map;
+    if (!map || seen.has(map)) return;
+    seen.add(map);
+    const info = gpuBytes(map);
+    console.info(
+      `[queen-bohemian-rhapsody] stadium.ktx2.glb — ${map.name || obj.material.name} (GPU bytes calculados, todos los niveles)`,
+    );
+    console.table({
+      format: formatName(map.format),
+      colorSpace: map.colorSpace,
+      size: `${info.width}×${info.height}`,
+      levels: info.levels,
+      gpuBytes: info.bytes,
+    });
+  });
+}
+
+/**
+ * task3: el GLB de Blender (stadiumGlb.js). Los nodos Fan_LOD0/Fan_LOD1 se ocultan: la multitud
+ * instancia su geometría (posiciones en JS, GLB_SITE). El GLB lo cachea useLoader: no se libera aquí.
+ *
+ * @param {{ progress: import('react').RefObject<{ tod: number }>, reduced: boolean }} props
+ */
+function GlbWorld({ progress, reduced }) {
+  const { scene, nodes } = useStadiumGLTF(MODEL_URL);
   useEffect(() => {
     ['Fan_LOD0', 'Fan_LOD1'].forEach((name) => {
       if (nodes[name]) nodes[name].visible = false;
     });
   }, [nodes]);
+  useEffect(() => logGlbTextures(scene), [scene]);
   return (
     <>
       <primitive object={scene} />
-      {nodes.Fan_LOD0 ? <Crowd geometry={nodes.Fan_LOD0.geometry} progress={progress} reduced={reduced} /> : null}
+      {nodes.Fan_LOD0 ? (
+        <Crowd
+          geometry={nodes.Fan_LOD0.geometry}
+          farGeometry={nodes.Fan_LOD1?.geometry}
+          site={GLB_SITE}
+          progress={progress}
+          reduced={reduced}
+        />
+      ) : null}
     </>
   );
 }
@@ -109,9 +146,9 @@ export default function Scene({ run, started, onEnter, onHoverPortal, skip, redu
         <SunsetSky progress={progress} reduced={reduced} />
         {/* Sol, ambiente y focos violetas ligados a la hora del día (tod). */}
         <SkyLights progress={progress} />
-        {/* TODO(task3): <Suspense><GlbWorld url={MODEL_URL} /></Suspense> (ver stadiumGlb.js). */}
+        {/* El GLB suspende mientras carga: el Suspense de Route.jsx cubre la escena (la portada sale a la vez). */}
         {USE_GLB ? (
-          <GlbWorld url="" progress={progress} reduced={reduced} />
+          <GlbWorld progress={progress} reduced={reduced} />
         ) : (
           <ProceduralWorld progress={progress} reduced={reduced} />
         )}

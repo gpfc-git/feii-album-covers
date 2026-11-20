@@ -5,8 +5,8 @@
 //   - la superficie del escenario es y = 0; el césped está en FLOOR_Y (scene.js);
 //   - el sol está hacia +Z (contraluz cuando la cámara viene desde -Z).
 //
-// t en segundos (los del vídeo de referencia, 16,5 s) · tod = time of day (0 atardecer, 1 noche).
-// ⚠️ Los keys desde t = 4 son estimados: se afinan en el GATE 1 con la tecla P (modo dev).
+// t en segundos (≈ 55,5 s; guion del GATE 4) · tod = time of day (0 atardecer, 1 noche).
+// Los keys del vuelo se afinan con la tecla P (modo dev).
 // La pose MATCH y la funda NO se afinan a mano: se calculan abajo (match cut).
 
 /**
@@ -71,31 +71,49 @@ export const ORBIT_DIST = [MATCH_DIST * 0.5, MATCH_DIST * 2];
 export const APPROACH = 1.2;
 
 /** 0 → FLIGHT_FROM: zoom (FOV de MATCH.fov a ZOOM_FOV) sobre el cantante, cámara quieta. */
-export const FLIGHT_FROM = 2.4;
+export const FLIGHT_FROM = 3.6;
 export const ZOOM_FOV = 17;
 
 /** Fundido portada → mundo dentro del zoom; el mundo se enciende al empezar el fundido. */
-export const PORTAL_FADE = [1.3, 2.3];
+export const PORTAL_FADE = [1.6, 3.4];
 export const WORLD_FROM = PORTAL_FADE[0];
 
 /**
- * Vuelo (desde FLIGHT_FROM). El primer key es la pose MATCH ya ampliada: el vuelo arranca justo
- * donde acaba el zoom. Desde t = 4 son los planos del vídeo de referencia: revelado, push-in y
- * contrapicado POR DETRÁS (+Z); desde t = 9,3 los planos de cara, por delante (−Z).
+ * Vuelo (desde FLIGHT_FROM), guion de gontugithub en el GATE 4 (sustituye a los planos del vídeo de 16,5 s):
+ * 1. Revelado lateral por detrás, en contrapicado (se ve el cielo como en la portada) y paso por su costado.
+ * 2. Sobre su hombro derecho (+X: Freddie mira a −Z) hacia el público; vuela sobre la multitud hasta el
+ *    fondo del estadio y se gira: el escenario visto desde la grada, como un espectador.
+ * 3. Dron por la ladera de la grada (círculo alrededor del centro z = −22), mirando siempre a Freddie.
+ * 4. Entra bajo el techo del escenario (tarima y = 0, focos a 7,3 m), lo encuadra y se queda detrás de él.
+ * 5. Sale por delante y sube sobre la grada del fondo: Freddie en el escenario y la multitud con los móviles (tod = 1).
+ * Medidas del GLB: grada r = 24…59 m desde (0, −22); tarima x ±7, z −2…9,6; muro de fondo en z ≈ 9,6.
  *
  * @type {CameraKey[]}
  */
 export const KEYS = [
   { t: FLIGHT_FROM, pos: MATCH.pos, look: MATCH.look, fov: ZOOM_FOV, tod: 0 }, // portada → Freddie, ampliado
-  { t: 4.0, pos: [3.5, 1.1, 6], look: [0, 1.5, 0], fov: 45, tod: 0 }, // revelado por detrás: Freddie a contraluz
-  { t: 5.3, pos: [1.8, 1.4, 3.4], look: [0, 1.8, 0], fov: 45, tod: 0 }, // push-in por detrás
-  { t: 6.7, pos: [1.2, 1.0, 1.4], look: [0, 1.9, -0.3], fov: 50, tod: 0 }, // contrapicado, sobre el hombro
-  { t: 8.0, pos: [0.8, 1.9, 1.6], look: [0, 2.2, -12], fov: 50, tod: 0.05 }, // tras él, mirando a la grada que tiene delante
-  { t: 9.3, pos: [0.5, 1.75, -1.1], look: [0, 1.72, 0], fov: 38, tod: 0.3 }, // primer plano de la cara
-  { t: 10.7, pos: [0.4, 1.7, -1.0], look: [0, 1.85, 0], fov: 38, tod: 0.5 }, // leve tilt, focos violetas
-  { t: 12.0, pos: [0.3, 1.0, -1.4], look: [0, 0.9, 0], fov: 45, tod: 0.8 }, // baja a cinturón / pie de micro
-  { t: 13.3, pos: [0, 1.3, -2.5], look: [0, 9, -30], fov: 60, tod: 1 }, // tilt al cielo estrellado
-  { t: 16.5, pos: [1, 1.1, -2], look: [0, 4, -25], fov: 60, tod: 1 }, // plano final
+  // 1 · por detrás, a contraluz y desde abajo (cielo como en la portada)
+  { t: 6.5, pos: [3.2, 0.7, 4.5], look: [0, 2.2, -3], fov: 50, tod: 0 }, // revelado lateral en contrapicado
+  { t: 9.5, pos: [2.6, 1.0, 2.8], look: [0, 2.0, -1.5], fov: 46, tod: 0.03 }, // por su costado
+  { t: 12.5, pos: [0.75, 1.95, 0.9], look: [0, 1.2, -14], fov: 50, tod: 0.08 }, // sobre su hombro derecho → público
+  // 2 · sobre la multitud hasta el fondo y vuelta al escenario
+  { t: 14.5, pos: [0.4, 2.8, -5], look: [0, 0.4, -26], fov: 52, tod: 0.15 }, // sale del escenario
+  { t: 16.8, pos: [0, 3.6, -20], look: [0, 1.5, -46], fov: 52, tod: 0.22 }, // sobre las cabezas
+  { t: 19.0, pos: [-2.5, 4.2, -38], look: [-16, 3, -40], fov: 46, tod: 0.28 }, // fondo del campo, girando
+  { t: 21.5, pos: [0, 3.0, -49], look: [0, 2.2, 0], fov: 28, tod: 0.33 }, // desde la grada: perspectiva de espectador
+  { t: 24.0, pos: [5, 4.5, -48], look: [0, 2.0, 0], fov: 28, tod: 0.37 }, // pausa, empieza a subir
+  // 3 · dron por la ladera de la grada (r ≈ 28–32 desde z = −22), siempre mirando a Freddie
+  { t: 27.5, pos: [18, 9, -45], look: [0, 1.6, 0], fov: 28, tod: 0.42 },
+  { t: 31.0, pos: [29, 8.5, -26], look: [0, 1.6, 0], fov: 30, tod: 0.47 },
+  { t: 34.5, pos: [22, 6.5, -9], look: [0, 1.6, 0], fov: 34, tod: 0.52 },
+  // 4 · entra en el escenario, lo encuadra y se queda detrás
+  { t: 37.5, pos: [10.5, 3.6, -1.5], look: [0, 1.7, 0], fov: 42, tod: 0.6 }, // borde de la tarima
+  { t: 40.5, pos: [3.2, 1.9, 1.4], look: [0, 1.7, 0], fov: 40, tod: 0.7 }, // dentro, bajo los focos
+  { t: 43.5, pos: [0.7, 2.0, 3.4], look: [0, 1.3, -12], fov: 50, tod: 0.8 }, // detrás de él, al público
+  // 5 · sale por delante bajo el techo (el muro del fondo, z ≈ 9,6, tapa la subida por detrás) y sube
+  { t: 47.0, pos: [2.5, 5.5, -6], look: [0, 1.6, 0], fov: 50, tod: 0.88 },
+  { t: 51.5, pos: [5, 15, -30], look: [0, 2, -4], fov: 40, tod: 0.95 },
+  { t: 55.5, pos: [6, 22, -48], look: [0, 2, -8], fov: 34, tod: 1 }, // plano final: escenario y móviles
 ];
 
 /** Duración total de la intro, en segundos. */

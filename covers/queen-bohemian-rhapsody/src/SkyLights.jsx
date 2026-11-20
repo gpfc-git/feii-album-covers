@@ -2,7 +2,7 @@
 //
 // - Sol (direccional): misma dirección que el sol del cielo (sunDirection de sky.js), así que el
 //   contraluz sobre Freddie sale de donde se ve el sol. Se apaga entre tod 0 y 0,6 y enrojece.
-// - Ambiente: de cálido (atardecer) a azul frío y más bajo (noche).
+// - Ambiente: de cálido (atardecer) a azul frío (noche), sin bajar: de noche el estadio debe leerse.
 // - Dos focos violetas desde la torre del escenario: suben con la noche (tod 0,2 → 0,9).
 // Sin asignaciones en useFrame: colores y vectores se reutilizan.
 
@@ -38,7 +38,7 @@ export default function SkyLights({ progress }) {
     }
     if (ambient.current) {
       ambient.current.color.lerpColors(AMB_DUSK, AMB_NIGHT, tod);
-      ambient.current.intensity = MathUtils.lerp(0.35, 0.2, tod);
+      ambient.current.intensity = MathUtils.lerp(0.35, 0.5, tod); // de noche, azul pero legible
     }
     const violet = MathUtils.lerp(15, 140, MathUtils.smoothstep(tod, 0.2, 0.9));
     if (spotL.current) spotL.current.intensity = violet;

@@ -1,8 +1,11 @@
-// Crowd.jsx — la multitud: UN InstancedMesh (1 draw call) + luces de móvil en UN Points (1 draw call).
+// Crowd.jsx — la multitud: InstancedMesh (1 draw call por LOD) + luces de móvil en UN Points (1 draw call).
 //
 // Las posiciones no viven en el GLB (presupuesto del plan): crowdLayout() las reparte
 //   - FIELD fans en el césped, delante del escenario (lado −Z), mirando a Freddie;
-//   - el resto en las filas de la grada (360°), mirando al centro.
+//   - el resto en las filas de la grada (360°, fuera del hueco del escenario), mirando a Freddie.
+// task3 (GLB): los NEAR fans más cercanos a Freddie usan Fan_LOD0 (886 tris) y el resto Fan_LOD1
+// (70 tris), en dos InstancedMesh con el mismo material: 200 × 886 + 4800 × 70 ≈ 513k tris.
+// Con placeholders hay un solo grupo (sin farGeometry).
 // Un PRNG con semilla hace que la multitud sea la misma en cada carga y que el render sea puro.
 //
 // task2 — dos efectos de shader, ambos movidos por la fase del pulso (uBeat ∈ [0, 1), 72 bpm,
@@ -31,12 +34,16 @@ import {
   Object3D,
   Vector2,
 } from 'three';
-import { FLOOR_Y, STAND_DEPTH, STAND_R0, STAND_ROWS, standY } from './placeholders.js';
+import { PLACEHOLDER_SITE } from './crowdSite.js';
+import { STAND_DEPTH, STAND_R0, STAND_RISE, STAND_ROWS } from './placeholders.js';
 import { BEAT_HZ } from './sky.js';
 
 const BOUNCE = 0.07; // m, altura del salto
 const PHONE_EVERY = 3; // 1 de cada 3 fans levanta el móvil
 const PHONE_Y = 1.55; // m sobre los pies (fan de escala 1)
+
+/** Altura (pies) de la fila `row` de la grada en `site`. */
+const rowY = (site, row) => site.floorY + 1 + row * STAND_RISE;
 
 /**
  * mulberry32: PRNG pequeño y determinista.
@@ -56,32 +63,79 @@ function prng(seed) {
 }
 
 /**
+ * Posición de un fan del césped.
+ *
+ * @param {import('./crowdSite.js').CrowdSite} site
+ * @param {() => number} rand
+ * @param {Object3D} dummy
+ */
+function placeOnGrass(site, rand, dummy) {
+  if (!site.grass) {
+    // task1: semicírculo delante del escenario, entre 4,5 y 20 m de Freddie.
+    const r = 4.5 + rand() * 15.5;
+    const a = Math.PI + (rand() - 0.5) * Math.PI * 0.9; // centrado en −Z
+    dummy.position.set(Math.sin(a) * r, site.floorY, Math.cos(a) * r);
+    return;
+  }
+  // GLB: dentro del círculo de césped, delante del escenario y a ≥ 4,5 m de Freddie; más denso
+  // cerca del escenario (aceptación exp(−d/14)), como en un concierto.
+  const { radius, maxZ } = site.grass;
+  for (;;) {
+    const x = (rand() * 2 - 1) * radius;
+    const z = site.centerZ + (rand() * 2 - 1) * radius;
+    const d = Math.hypot(x, z);
+    const inside = Math.hypot(x, z - site.centerZ) <= radius && z <= maxZ && d >= 4.5;
+    if (inside && rand() <= Math.exp(-(d - 4.5) / 14)) {
+      dummy.position.set(x, site.floorY, z);
+      return;
+    }
+  }
+}
+
+/**
+ * Posición de un fan de la grada (360°, fuera del hueco del escenario).
+ *
+ * @param {import('./crowdSite.js').CrowdSite} site
+ * @param {() => number} rand
+ * @param {Object3D} dummy
+ */
+function placeInStand(site, rand, dummy) {
+  for (;;) {
+    const row = Math.floor(rand() * STAND_ROWS);
+    const r = STAND_R0 + row * STAND_DEPTH + (rand() - 0.5) * 0.3;
+    const a = rand() * Math.PI * 2;
+    const x = Math.sin(a) * r;
+    const z = site.centerZ + Math.cos(a) * r;
+    if (!site.gap || Math.abs(x) >= site.gap.halfX || z <= site.gap.minZ) {
+      dummy.position.set(x, rowY(site, row), z);
+      return;
+    }
+  }
+}
+
+/**
  * Reparto determinista de la multitud (función pura: se puede llamar en useMemo).
+ * Devuelve dos grupos: los `near` fans más cercanos a Freddie (LOD0) y el resto (LOD1).
  *
  * @param {number} count
  * @param {number} field
+ * @param {number} near
+ * @param {import('./crowdSite.js').CrowdSite} site
  */
-function crowdLayout(count, field) {
+function crowdLayout(count, field, near, site) {
   const rand = prng(1985); // Live Aid
   const matrices = new Float32Array(count * 16);
   const colors = new Float32Array(count * 3);
   const phases = new Float32Array(count);
+  const dist = new Float32Array(count);
   const phones = { position: [], phase: [], seed: [] };
   const dummy = new Object3D();
   const color = new Color();
 
   for (let n = 0; n < count; n += 1) {
-    if (n < field) {
-      // Césped: semicírculo delante del escenario, entre 4,5 y 20 m de Freddie.
-      const r = 4.5 + rand() * 15.5;
-      const a = Math.PI + (rand() - 0.5) * Math.PI * 0.9; // centrado en −Z
-      dummy.position.set(Math.sin(a) * r, FLOOR_Y, Math.cos(a) * r);
-    } else {
-      const row = Math.floor(rand() * STAND_ROWS);
-      const r = STAND_R0 + row * STAND_DEPTH + (rand() - 0.5) * 0.3;
-      const a = rand() * Math.PI * 2;
-      dummy.position.set(Math.sin(a) * r, standY(row), Math.cos(a) * r);
-    }
+    if (n < field) placeOnGrass(site, rand, dummy);
+    else placeInStand(site, rand, dummy);
+    dist[n] = dummy.position.length();
     // Mirar al escenario: gira sobre Y para que el +Z local del fan apunte al origen.
     dummy.rotation.set(0, Math.atan2(-dummy.position.x, -dummy.position.z), 0);
     const scale = 0.9 + rand() * 0.2;
@@ -95,19 +149,34 @@ function crowdLayout(count, field) {
     phases[n] = rand() * 0.25;
 
     if (n % PHONE_EVERY === 0) {
-      // Mano algo hacia delante (+Z local, hacia el escenario) y a un lado.
-      const side = (rand() - 0.5) * 0.4;
+      // Mano algo hacia delante (+Z local, hacia el escenario) y a un lado; en el GLB, donde está
+      // el móvil del modelo. Local → mundo con el giro en Y del fan.
+      const [side, up, fwd] = site.phone ?? [(rand() - 0.5) * 0.4, PHONE_Y, 0.25];
       const yaw = dummy.rotation.y;
       phones.position.push(
-        dummy.position.x + (Math.sin(yaw) * 0.25 + Math.cos(yaw) * side) * scale,
-        dummy.position.y + PHONE_Y * scale,
-        dummy.position.z + (Math.cos(yaw) * 0.25 - Math.sin(yaw) * side) * scale,
+        dummy.position.x + (Math.sin(yaw) * fwd + Math.cos(yaw) * side) * scale,
+        dummy.position.y + up * scale,
+        dummy.position.z + (Math.cos(yaw) * fwd - Math.sin(yaw) * side) * scale,
       );
       phones.phase.push(phases[n]);
       phones.seed.push(rand());
     }
   }
-  return { matrices, colors, phases, phones };
+
+  // LOD: los `near` más cercanos a Freddie van al primer grupo (se ven en los planos cortos).
+  const order = Array.from({ length: count }, (_, i) => i).sort((a, b) => dist[a] - dist[b]);
+  const pick = (ids) => {
+    const m = new Float32Array(ids.length * 16);
+    const c = new Float32Array(ids.length * 3);
+    const p = new Float32Array(ids.length);
+    ids.forEach((id, k) => {
+      m.set(matrices.subarray(id * 16, id * 16 + 16), k * 16);
+      c.set(colors.subarray(id * 3, id * 3 + 3), k * 3);
+      p[k] = phases[id];
+    });
+    return { matrices: m, colors: c, phases: p, count: ids.length };
+  };
+  return { groups: [pick(order.slice(0, near)), pick(order.slice(near))], phones };
 }
 
 const phoneVert = /* glsl */ `
@@ -145,19 +214,59 @@ const phoneFrag = /* glsl */ `
 `;
 
 /**
+ * Un grupo de la multitud: un InstancedMesh con su `aPhase` por instancia.
+ *
+ * @param {object} props
+ * @param {import('three').BufferGeometry} props.geometry
+ * @param {import('three').Material} props.material
+ * @param {{ matrices: Float32Array, colors: Float32Array, phases: Float32Array, count: number }} props.group
+ * @param {string} props.name
+ * @param {import('react').RefObject<import('three').InstancedMesh | null>} [props.ref] Para leer el material en useFrame.
+ */
+function CrowdGroup({ geometry, material, group, name, ref }) {
+  const local = useRef(null);
+  const mesh = ref ?? local;
+  useLayoutEffect(() => {
+    const im = mesh.current;
+    if (!im) return undefined;
+    im.instanceMatrix.array.set(group.matrices);
+    im.instanceMatrix.needsUpdate = true;
+    im.instanceColor = new InstancedBufferAttribute(group.colors, 3);
+    im.computeBoundingSphere();
+    // aPhase por instancia. La geometría puede venir del GLB: se quita al desmontar.
+    geometry.setAttribute('aPhase', new InstancedBufferAttribute(group.phases, 1));
+    return () => geometry.deleteAttribute('aPhase');
+  }, [geometry, group, mesh]);
+  return <instancedMesh ref={mesh} name={name} args={[geometry, material, group.count]} />;
+}
+
+/**
  * @param {object} props
  * @param {import('three').BufferGeometry} props.geometry Fan_LOD0 (placeholder o nodo del GLB).
+ * @param {import('three').BufferGeometry} [props.farGeometry] Fan_LOD1 para los lejanos; sin ella, todos usan `geometry`.
  * @param {import('react').RefObject<{ tod: number }>} props.progress Hora del día (CameraRig).
  * @param {boolean} props.reduced prefers-reduced-motion: sin bote ni vaivén.
+ * @param {import('./crowdSite.js').CrowdSite} [props.site] Dónde se colocan (placeholders o GLB).
  * @param {number} [props.count] Total de fans.
  * @param {number} [props.field] Cuántos de ellos están en el césped.
+ * @param {number} [props.near] Cuántos (los más cercanos a Freddie) usan `geometry` si hay `farGeometry`.
  */
-export default function Crowd({ geometry, progress, reduced, count = 5000, field = 1800 }) {
-  const mesh = useRef(null);
+export default function Crowd({
+  geometry,
+  farGeometry,
+  progress,
+  reduced,
+  site = PLACEHOLDER_SITE,
+  count = 5000,
+  field = 1800,
+  near = 200,
+}) {
+  const crowdMesh = useRef(null);
   const phonesMat = useRef(null);
   const clock = useRef(0);
   const buffer = useRef(new Vector2());
-  const layout = useMemo(() => crowdLayout(count, field), [count, field]);
+  const nearCount = farGeometry ? Math.min(near, count) : count;
+  const layout = useMemo(() => crowdLayout(count, field, nearCount, site), [count, field, nearCount, site]);
 
   // Material de la multitud con el bote inyectado. Uniforms en userData: el shader compilado
   // los comparte por referencia, así que basta con escribir .value cada frame.
@@ -211,18 +320,6 @@ export default function Crowd({ geometry, progress, reduced, count = 5000, field
   useEffect(() => () => crowdMat.dispose(), [crowdMat]);
   useEffect(() => () => phones.dispose(), [phones]);
 
-  useLayoutEffect(() => {
-    const im = mesh.current;
-    if (!im) return undefined;
-    im.instanceMatrix.array.set(layout.matrices);
-    im.instanceMatrix.needsUpdate = true;
-    im.instanceColor = new InstancedBufferAttribute(layout.colors, 3);
-    im.computeBoundingSphere();
-    // aPhase por instancia. La geometría puede venir del GLB: se quita al desmontar.
-    geometry.setAttribute('aPhase', new InstancedBufferAttribute(layout.phases, 1));
-    return () => geometry.deleteAttribute('aPhase');
-  }, [geometry, layout]);
-
   useFrame((state, delta) => {
     const tod = progress.current.tod;
     if (!reduced) clock.current = (clock.current + Math.min(delta, 0.05) * BEAT_HZ) % 4; // en pulsos
@@ -230,7 +327,8 @@ export default function Crowd({ geometry, progress, reduced, count = 5000, field
     const sway = clock.current / 4;
     const bounce = reduced ? 0 : BOUNCE * MathUtils.lerp(0.4, 1, tod); // más bote cuando cae la noche
 
-    const im = mesh.current;
+    // Un solo material para los dos grupos: basta con escribir sus uniforms una vez.
+    const im = crowdMesh.current;
     if (im) {
       im.material.userData.uBeat.value = beat;
       im.material.userData.uBounce.value = bounce;
@@ -251,7 +349,10 @@ export default function Crowd({ geometry, progress, reduced, count = 5000, field
 
   return (
     <>
-      <instancedMesh ref={mesh} name="Crowd" args={[geometry, crowdMat, count]} />
+      <CrowdGroup ref={crowdMesh} name="Crowd" geometry={geometry} material={crowdMat} group={layout.groups[0]} />
+      {farGeometry && layout.groups[1].count > 0 ? (
+        <CrowdGroup name="CrowdFar" geometry={farGeometry} material={crowdMat} group={layout.groups[1]} />
+      ) : null}
       <points name="Phones" geometry={phones}>
         <shaderMaterial
           ref={phonesMat}
